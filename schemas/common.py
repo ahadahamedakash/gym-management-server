@@ -9,6 +9,14 @@ class TimestampSchema(BaseModel):
 
 
 class PaginationParams(BaseModel):
-    page: int = Field(default=1, gt=1)
-    total: int = Field(default=0, ge=0)
-    skip: int = Field(default=10, gt=1)
+    page: int = Field(default=1, ge=1)
+    limit: int = Field(default=10, ge=1, le=100)
+
+
+class PaginationMeta(BaseModel):
+    page: int
+    limit: int
+    total: int
+    total_pages: int
+    has_next: bool
+    has_previous: bool
