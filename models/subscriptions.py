@@ -12,7 +12,7 @@ from sqlalchemy import (
 from database import Base
 
 
-class Subscription(Base):
+class Subscriptions(Base):
     __tablename__ = "subscriptions"
 
     id = Column(Integer, primary_key=True, index=True)

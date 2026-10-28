@@ -1,6 +1,5 @@
 from database import Base
 from sqlalchemy import Column, Integer, String, Boolean
-from datetime import datetime
 
 
 class Users(Base):

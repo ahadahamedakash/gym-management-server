@@ -1,17 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from datetime import timedelta, datetime, timezone
-from typing import Annotated
-from models import Users
 from fastapi.responses import JSONResponse
-from passlib.context import CryptContext
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+
 from jose import jwt
+from typing import Annotated
+from sqlalchemy.orm import Session
+from passlib.context import CryptContext
+from datetime import timedelta, datetime, timezone
 
-from schemas.auth import CreateUser, UpdatePassword, UpdateUser
 from database import get_db
+from models.users import Users
+from schemas.auth import CreateUser, UpdatePassword, UpdateUser
 
-router = APIRouter()
+router = APIRouter(prefix="/auth", tags=["Auth"])
 
 bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 OAuth2_bearer = OAuth2PasswordBearer(tokenUrl="login")
@@ -52,35 +53,64 @@ def get_current_user(token: Annotated[str, Depends(OAuth2_bearer)]):
             raise HTTPException(status_code=404, detail="User not found")
         return {"username": username, "id": user_id, "role": role}
     except:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+
+
+def get_current_admin(
+    user: UserDependency,
+    db: DbDependency,
+):
+    current_user = db.query(Users).filter(Users.id == user["id"]).first()
+
+    if current_user is None or not current_user.is_active:
+        raise HTTPException(
+            status_code=401,
+            detail="User not found or inactive",
+        )
+
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Admin permission required",
+        )
+
+    return current_user
 
 
 DbDependency = Annotated[Session, Depends(get_db)]
 UserDependency = Annotated[dict, Depends(get_current_user)]
+AdminDependency = Annotated[
+    Users,
+    Depends(get_current_admin),
+]
 
 
 @router.post("/register")
-def register(db: DbDependency, new_user: CreateUser):
-    existing_username = (
-        db.query(Users).filter(Users.username == new_user.username).first()
-    )
+def register(db: DbDependency, data: CreateUser):
+    existing_username = db.query(Users).filter(Users.username == data.username).first()
 
     if existing_username:
-        raise HTTPException(status_code=400, detail="Username already exists")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exists"
+        )
 
-    existing_email = db.query(Users).filter(Users.email == new_user.email).first()
+    existing_email = db.query(Users).filter(Users.email == data.email).first()
 
     if existing_email:
-        raise HTTPException(status_code=400, detail="Email already exists")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists"
+        )
 
     user_model = Users(
-        email=new_user.email,
-        username=new_user.username,
-        firstname=new_user.firstname,
-        lastname=new_user.lastname,
-        hash_password=bcrypt_context.hash(new_user.password),
+        email=data.email,
+        username=data.username,
+        firstname=data.firstname,
+        lastname=data.lastname,
+        hash_password=bcrypt_context.hash(data.password),
         is_active=True,
-        role=new_user.role,
+        role=data.role,
     )
 
     db.add(user_model)
@@ -101,7 +131,7 @@ def login_user(
         return "Failed authentication"
 
     token = create_access_token(
-        user.username, user.id, user.role, timedelta(minutes=30)
+        user.username, user.id, user.role, timedelta(minutes=60)
     )
 
     return {"access_token": token, "tokey_type": "bearer"}
@@ -150,12 +180,16 @@ def update_password(
 @router.get("/user-details")
 def get_user_details(user: UserDependency, db: DbDependency):
     if user is None:
-        raise HTTPException(status_code=401, detail="Failed Authentication")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Failed Authentication"
+        )
 
     current_user = db.query(Users).filter(Users.id == user.get("id")).first()
 
     if current_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
 
     return {
         "id": current_user.id,

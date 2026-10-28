@@ -11,7 +11,7 @@ from sqlalchemy import (
 from database import Base
 
 
-class Enrollment(Base):
+class Enrollments(Base):
     __tablename__ = "enrollments"
 
     id = Column(Integer, primary_key=True, index=True)
