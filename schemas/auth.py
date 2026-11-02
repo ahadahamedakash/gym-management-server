@@ -16,7 +16,7 @@ class CreateUser(BaseModel):
     firstname: str
     lastname: str
     password: str
-    role: Roles
+    role: Roles = Roles.USER
 
 
 class UpdateUser(BaseModel):

@@ -1,6 +1,8 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -28,21 +30,41 @@ def get_subscriptions(
     db: DbDependency,
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
+    search: str | None = Query(default=None, max_length=100),
+    is_active: bool | None = Query(default=None),
+    sort_by: str = Query(default="asc", pattern="^(asc|desc)$"),
 ):
-    query = db.query(Subscriptions).filter(Subscriptions.is_active == True)
+    query = db.query(Subscriptions)
+
+    if search and search.strip():
+        search_term = f"%{search.strip()}%"
+
+        query = query.filter(
+            or_(
+                Subscriptions.name.ilike(search_term),
+                Subscriptions.description.ilike(search_term),
+            )
+        )
+
+    if is_active is not None:
+        query = query.filter(Subscriptions.is_active == is_active)
 
     total = query.count()
 
-    items = (
-        query.order_by(Subscriptions.id.desc())
-        .offset((page - 1) * limit)
-        .limit(limit)
-        .all()
-    )
+    if sort_by == "asc":
+        query = query.order_by(
+            Subscriptions.price.asc(),
+            Subscriptions.id.asc(),
+        )
+    else:
+        query = query.order_by(
+            Subscriptions.price.desc(),
+            Subscriptions.id.desc(),
+        )
+
+    items = query.offset((page - 1) * limit).limit(limit).all()
 
     total_pages = (total + limit - 1) // limit
-    has_next = page < total_pages
-    has_previous = page > 1
 
     return {
         "items": items,
@@ -51,8 +73,8 @@ def get_subscriptions(
             "page": page,
             "limit": limit,
             "total_pages": total_pages,
-            "has_next": has_next,
-            "has_previous": has_previous,
+            "has_next": page < total_pages,
+            "has_previous": page > 1,
         },
     }
 
