@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 # DATABASE_URL = "sqlite:///./gym-management.db"
-DATABASE_URL = "postgresql://postgres:N8vQ3mK7xR5pT9wL@db.gyhisdcwjurproujxkah.supabase.co:5432/postgres"
+DATABASE_URL = "postgresql://postgres.gyhisdcwjurproujxkah:N8vQ3mK7xR5pT9wL@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
 
 engine = create_engine(DATABASE_URL)
 
