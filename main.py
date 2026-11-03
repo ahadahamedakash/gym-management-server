@@ -18,6 +18,7 @@ origins = [
     "http://127.0.0.1:5174",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://gym-management-client-delta.vercel.app",
 ]
 
 app.add_middleware(
